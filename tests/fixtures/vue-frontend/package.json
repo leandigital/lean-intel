@@ -1,0 +1,11 @@
+{
+  "name": "vue-frontend-test",
+  "version": "1.0.0",
+  "dependencies": {
+    "vue": "^3.3.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,0 +1,34 @@
+lean-intel
+Copyright 2024-2026 Kirill Ulyanov
+
+This product includes software developed by Kirill Ulyanov.
+https://github.com/leandigital/lean-intel
+
+Licensed under the Apache License, Version 2.0.
+
+===============================================================================
+
+ATTRIBUTION REQUIREMENTS
+
+If you modify this software, you must:
+
+1. Retain this NOTICE file in any distribution
+2. Clearly state that your version is a modified version of lean-intel
+3. Credit "Kirill Ulyanov" as the original author
+4. Include a link to the original repository:
+   https://github.com/leandigital/lean-intel
+
+===============================================================================
+
+THIRD-PARTY NOTICES
+
+This software uses the following open source packages:
+
+- Commander.js (MIT License) - https://github.com/tj/commander.js
+- Zod (MIT License) - https://github.com/colinhacks/zod
+- Chalk (MIT License) - https://github.com/chalk/chalk
+- Ora (MIT License) - https://github.com/sindresorhus/ora
+- Marked (MIT License) - https://github.com/markedjs/marked
+- Puppeteer (Apache 2.0 License) - https://github.com/puppeteer/puppeteer
+
+See package.json for the complete list of dependencies.
