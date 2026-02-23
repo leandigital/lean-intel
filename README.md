@@ -6,7 +6,7 @@ Local-first CLI tool that uses leading LLM providers (Anthropic Claude, OpenAI C
 
 [![CI](https://github.com/leandigital/lean-intel/actions/workflows/ci.yml/badge.svg)](https://github.com/leandigital/lean-intel/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-green.svg)]()
+[![Version](https://img.shields.io/badge/version-1.1.0-green.svg)]()
 
 ---
 
