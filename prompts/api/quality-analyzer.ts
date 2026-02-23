@@ -173,16 +173,19 @@ export const qualityAnalyzerOutputSchema = z.object({
     .object({
       hasDocumentedStandards: z.boolean(),
       violations: z.array(
-        z.object({
-          // Accept either format: (rule, status, impact) or (standard, violation, severity, location)
-          rule: z.string().optional(),
-          standard: z.string().optional(),
-          status: z.string().optional(),
-          violation: z.string().optional(),
-          impact: z.string().optional(),
-          severity: z.string().optional(),
-          location: z.string().optional(),
-        })
+        z.union([
+          z.string(),
+          z.object({
+            // Accept either format: (rule, status, impact) or (standard, violation, severity, location)
+            rule: z.string().optional(),
+            standard: z.string().optional(),
+            status: z.string().optional(),
+            violation: z.string().optional(),
+            impact: z.string().optional(),
+            severity: z.string().optional(),
+            location: z.string().optional(),
+          }),
+        ])
       ),
       recommendations: z.array(z.string()),
     })

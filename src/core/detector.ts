@@ -140,31 +140,45 @@ export class ProjectDetector {
                        packageJson?.devDependencies?.['@angular/core'];
 
     const frontendIndicators = [
-      // Dependencies (exclude React Native)
+      // Framework dependencies (exclude React Native)
       hasReact,
       hasVue,
       hasAngular,
       packageJson?.dependencies?.['svelte'],
       packageJson?.dependencies?.['next'],
       packageJson?.dependencies?.['nuxt'],
-      // Bundlers (common in component libraries and frontend projects)
+      // Bundlers with frameworks (strong signal)
       packageJson?.devDependencies?.['rollup'] && (hasReact || hasVue || hasAngular),
       packageJson?.devDependencies?.['webpack'] && (hasReact || hasVue || hasAngular),
       packageJson?.devDependencies?.['vite'] && (hasReact || hasVue || hasAngular),
-      // Files (check for actual frontend component files, not just directory name)
+      // Framework component files
       files.some(f => f.includes('components/') && (f.endsWith('.jsx') || f.endsWith('.tsx') || f.endsWith('.vue'))),
       files.some(f => f.endsWith('.jsx') || f.endsWith('.tsx')),
       files.some(f => f.endsWith('.vue')),
       files.some(f => f.includes('pages/') && (f.endsWith('.jsx') || f.endsWith('.tsx') || f.endsWith('.vue'))),
+      // Vanilla JS / non-framework frontend indicators
+      // Frontend CSS build tooling (devDependencies — almost exclusively frontend)
+      packageJson?.devDependencies?.['css-loader'] || packageJson?.devDependencies?.['style-loader'] || packageJson?.devDependencies?.['sass-loader'],
+      packageJson?.devDependencies?.['html-webpack-plugin'] || packageJson?.devDependencies?.['html-bundler-webpack-plugin'],
+      // Frontend UI/animation libraries (dependencies)
+      packageJson?.dependencies?.['gsap'] || packageJson?.dependencies?.['swiper'] || packageJson?.dependencies?.['jquery'] || packageJson?.dependencies?.['bootstrap'] || packageJson?.dependencies?.['three'],
+      // Tailwind or PostCSS config files (exclusively frontend)
+      files.some(f => f === 'tailwind.config.js' || f === 'tailwind.config.ts' || f === 'postcss.config.js' || f === 'postcss.config.ts' || f === 'postcss.config.mjs'),
+      // SCSS/SASS/LESS source files in source directories
+      files.some(f => (f.startsWith('src/') || f.includes('styles/')) && (f.endsWith('.scss') || f.endsWith('.sass') || f.endsWith('.less'))),
+      // HTML template files in source directories
+      files.some(f => (f.startsWith('src/') || f.includes('views/')) && f.endsWith('.html')),
     ];
 
     // Backend detection
     const backendIndicators = [
-      // Dependencies
+      // Node.js frameworks
       packageJson?.dependencies?.['express'],
       packageJson?.dependencies?.['@nestjs/core'],
       packageJson?.dependencies?.['fastify'],
       packageJson?.dependencies?.['koa'],
+      // Additional Node.js/JS server frameworks
+      packageJson?.dependencies?.['hono'] || packageJson?.dependencies?.['elysia'] || packageJson?.dependencies?.['h3'] || packageJson?.dependencies?.['hapi'] || packageJson?.dependencies?.['@hapi/hapi'],
       // Python
       files.some(f => f === 'requirements.txt'),
       files.some(f => f === 'pyproject.toml'),
@@ -174,10 +188,29 @@ export class ProjectDetector {
       files.some(f => f === 'build.gradle'),
       // PHP
       files.some(f => f === 'composer.json'),
+      // Go
+      files.some(f => f === 'go.mod'),
+      // Rust
+      files.some(f => f === 'Cargo.toml'),
+      // Ruby
+      files.some(f => f === 'Gemfile'),
+      // .NET
+      files.some(f => f.endsWith('.csproj') || f.endsWith('.sln')),
       // Database/API patterns
       files.some(f => f.includes('controllers/') || f.includes('routes/')),
       files.some(f => f.includes('models/') && !f.includes('components/')),
       files.some(f => f.includes('middleware/')),
+      // Frameworkless backend indicators
+      // Database client libraries (almost exclusively backend)
+      packageJson?.dependencies?.['pg'] || packageJson?.dependencies?.['mysql2'] || packageJson?.dependencies?.['mongodb'] || packageJson?.dependencies?.['mongoose'],
+      packageJson?.dependencies?.['prisma'] || packageJson?.dependencies?.['@prisma/client'] || packageJson?.dependencies?.['typeorm'] || packageJson?.dependencies?.['sequelize'] || packageJson?.dependencies?.['drizzle-orm'],
+      packageJson?.dependencies?.['redis'] || packageJson?.dependencies?.['ioredis'] || packageJson?.dependencies?.['bullmq'],
+      // Server/API utilities (almost exclusively backend)
+      packageJson?.dependencies?.['cors'] || packageJson?.dependencies?.['helmet'] || packageJson?.dependencies?.['morgan'] || packageJson?.dependencies?.['compression'],
+      packageJson?.dependencies?.['jsonwebtoken'] || packageJson?.dependencies?.['bcrypt'] || packageJson?.dependencies?.['bcryptjs'] || packageJson?.dependencies?.['passport'],
+      packageJson?.dependencies?.['nodemailer'] || packageJson?.dependencies?.['socket.io'] || packageJson?.dependencies?.['ws'],
+      // GraphQL server
+      packageJson?.dependencies?.['graphql'] || packageJson?.dependencies?.['@apollo/server'] || packageJson?.dependencies?.['type-graphql'],
     ];
 
     // DevOps detection - ONLY infrastructure-as-code patterns

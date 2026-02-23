@@ -51,6 +51,10 @@ import {
   getDevOpsFilesToGenerate,
   generateDevOpsFilePrompt,
 } from '../../prompts/api/document-prompt-rules-devops';
+import {
+  getGenericFilesToGenerate,
+  generateGenericFilePrompt,
+} from '../../prompts/api/document-prompt-rules-generic';
 import { LLMCache } from '../utils/llmCache';
 import { CompletionOptions, CompletionResult } from '../providers/types';
 import { parallelLimitWithProgress } from '../utils/concurrency';
@@ -442,7 +446,8 @@ export class LLMOrchestrator {
       return getDevOpsFilesToGenerate(documentationTier);
     }
 
-    throw new Error(`Unsupported project type: ${projectType}`);
+    // Fallback: use generic documentation for unknown project types
+    return getGenericFilesToGenerate(documentationTier);
   }
 
   /**
@@ -599,7 +604,18 @@ export class LLMOrchestrator {
       });
     }
 
-    throw new Error(`Unsupported project type: ${projectType}`);
+    // Fallback: use generic prompt for unknown project types
+    return generateGenericFilePrompt(file, {
+      projectName,
+      projectDescription,
+      industry,
+      documentationTier,
+      fileTree: context.fileTree || '',
+      dependencies: context.dependencies || {},
+      devDependencies: context.devDependencies || {},
+      gitRecentCommits: context.gitRecentCommits || '',
+      packageJsonContent: context.packageJsonContent,
+    });
   }
 
   /**
