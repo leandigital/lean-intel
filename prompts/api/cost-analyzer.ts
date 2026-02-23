@@ -42,7 +42,7 @@ export const costAnalyzerOutputSchema = z.object({
   scalingProjections: z.array(
     z.object({
       scale: z.string(),
-      users: z.number(),
+      users: z.coerce.number(),
       estimatedCost: z.string(),
       grossMargin: z.string(),
       notes: z.string(),
@@ -94,7 +94,7 @@ export const costAnalyzerOutputSchema = z.object({
     })
   ),
   viabilityAssessment: z.object({
-    isViable: z.union([z.boolean(), z.string()]), // Allow both boolean and string
+    isViable: z.union([z.boolean(), z.string(), z.null()]), // Allow boolean, string, and null
     breakeven: z.string(),
     concerns: z.array(z.string()),
     priceIncreaseSuggestion: z.string().optional(),
