@@ -9,6 +9,8 @@ import { glob } from 'glob';
 import simpleGit, { SimpleGit } from 'simple-git';
 import { ProjectContext } from '../types';
 import { logger } from '../utils/logger';
+import { ContentRedactor, RedactionStats } from '../utils/contentRedactor';
+import { LeanIgnore } from '../utils/leanignore';
 
 // Type for execSync errors which may contain stdout/stderr
 interface ExecError extends Error {
@@ -21,13 +23,40 @@ function isExecError(error: unknown): error is ExecError {
   return error instanceof Error && 'stdout' in error;
 }
 
+export interface ContextGathererOptions {
+  /** Include sensitive files (.env, keys, etc.) */
+  includeSensitive?: boolean;
+  /** Disable content redaction */
+  noRedact?: boolean;
+}
+
 export class ContextGatherer {
   private rootPath: string;
   private git: SimpleGit;
+  private leanIgnore: LeanIgnore;
+  private redactor: ContentRedactor | null;
 
-  constructor(rootPath: string) {
+  constructor(rootPath: string, options: ContextGathererOptions = {}) {
     this.rootPath = rootPath;
     this.git = simpleGit(rootPath);
+    this.leanIgnore = new LeanIgnore(rootPath, {
+      includeSensitive: options.includeSensitive,
+    });
+    this.redactor = options.noRedact ? null : new ContentRedactor();
+  }
+
+  /**
+   * Merge base ignore patterns with LeanIgnore patterns
+   */
+  private getIgnorePatterns(baseIgnores: string[]): string[] {
+    return this.leanIgnore.mergeWith(baseIgnores);
+  }
+
+  /**
+   * Get redaction statistics (cumulative)
+   */
+  getRedactionStats(): RedactionStats | null {
+    return this.redactor?.getStats() ?? null;
   }
 
   /**
@@ -37,6 +66,9 @@ export class ContextGatherer {
    */
   async gatherDocumentationContext(projectContext: ProjectContext): Promise<Record<string, unknown>> {
     logger.info('Gathering project context...');
+
+    // Load .leanignore patterns
+    await this.leanIgnore.load();
 
     // Common context gathered for all project types
     const [
@@ -313,6 +345,7 @@ export class ContextGatherer {
    */
   async gatherSecurityContext(projectContext: ProjectContext): Promise<Record<string, unknown>> {
     logger.info('Gathering security context...');
+    await this.leanIgnore.load();
 
     const [
       fileTree,
@@ -440,7 +473,7 @@ export class ContextGatherer {
   private async getFileTree(maxDepth = 4): Promise<string> {
     const files = await glob('**/*', {
       cwd: this.rootPath,
-      ignore: [
+      ignore: this.getIgnorePatterns([
         '**/node_modules/**',
         '**/dist/**',
         '**/build/**',
@@ -450,7 +483,7 @@ export class ContextGatherer {
         '**/out/**',
         '**/__pycache__/**',
         '**/*.pyc',
-      ],
+      ]),
       nodir: false,
       dot: true,
       maxDepth,
@@ -531,7 +564,7 @@ export class ContextGatherer {
 
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**', '**/dist/**', '**/build/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**', '**/dist/**', '**/build/**']),
     });
 
     return files.slice(0, 100); // Limit to avoid token bloat
@@ -552,7 +585,7 @@ export class ContextGatherer {
 
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**', '**/dist/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**', '**/dist/**']),
     });
 
     return files;
@@ -573,7 +606,7 @@ export class ContextGatherer {
 
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**', '**/dist/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**', '**/dist/**']),
     });
 
     return files;
@@ -592,7 +625,7 @@ export class ContextGatherer {
 
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**', '**/dist/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**', '**/dist/**']),
     });
 
     return files;
@@ -614,12 +647,12 @@ export class ContextGatherer {
 
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: [
+      ignore: this.getIgnorePatterns([
         '**/node_modules/**',
         '**/dist/**',
         '**/build/**',
         '**/.next/**',
-      ],
+      ]),
     });
 
     return files.slice(0, 50);
@@ -633,7 +666,7 @@ export class ContextGatherer {
 
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**']),
       dot: true,
     });
 
@@ -711,7 +744,7 @@ export class ContextGatherer {
 
     const files = await glob(authPatterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**']),
     });
 
     return files.length > 0;
@@ -732,7 +765,7 @@ export class ContextGatherer {
 
     const files = await glob(apiPatterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**']),
     });
 
     return files.length > 0;
@@ -744,6 +777,7 @@ export class ContextGatherer {
    */
   async gatherLicenseContext(projectContext: ProjectContext): Promise<Record<string, unknown>> {
     logger.info('Gathering license compliance context...');
+    await this.leanIgnore.load();
 
     const [fileTree, packageJson, requirementsTxt, licenseFiles, licenseCheckerOutput, projectLicenseContent] =
       await Promise.all([
@@ -869,6 +903,7 @@ export class ContextGatherer {
    */
   async gatherQualityContext(projectContext: ProjectContext): Promise<Record<string, unknown>> {
     logger.info('Gathering code quality context...');
+    await this.leanIgnore.load();
 
     const [fileTree, packageJson, sampleCode, gitCommits, componentFiles, configFiles] = await Promise.all([
       this.getFileTree(),
@@ -895,6 +930,7 @@ export class ContextGatherer {
    */
   async gatherCostContext(projectContext: ProjectContext): Promise<Record<string, unknown>> {
     logger.info('Gathering cost & scalability context...');
+    await this.leanIgnore.load();
 
     const [fileTree, packageJson, cloudConfigFiles, databaseFiles, cacheFiles, dockerfiles, apiFiles] = await Promise.all([
       this.getFileTree(),
@@ -946,6 +982,7 @@ export class ContextGatherer {
    */
   async gatherHIPAAContext(projectContext: ProjectContext): Promise<Record<string, unknown>> {
     logger.info('Gathering HIPAA compliance context...');
+    await this.leanIgnore.load();
 
     const [fileTree, databaseFiles, authFiles, apiFiles, environmentFiles] = await Promise.all([
       this.getFileTree(),
@@ -980,6 +1017,7 @@ export class ContextGatherer {
    */
   async gatherSummaryContext(projectContext: ProjectContext): Promise<Record<string, unknown>> {
     logger.info('Gathering summary context...');
+    await this.leanIgnore.load();
 
     const [
       fileTree,
@@ -1047,7 +1085,14 @@ export class ContextGatherer {
         return null;
       }
 
-      return await fs.readFile(fullPath, 'utf-8');
+      let content = await fs.readFile(fullPath, 'utf-8');
+
+      if (this.redactor) {
+        const result = this.redactor.redact(content);
+        content = result.content;
+      }
+
+      return content;
     } catch (_error) {
       logger.debug(`Could not read file: ${relativePath}`);
       return null;
@@ -1086,7 +1131,7 @@ export class ContextGatherer {
     ];
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**', '**/dist/**', '**/build/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**', '**/dist/**', '**/build/**']),
     });
     return files.slice(0, 50);
   }
@@ -1102,7 +1147,7 @@ export class ContextGatherer {
     ];
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**', '**/dist/**', '**/build/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**', '**/dist/**', '**/build/**']),
     });
     return files.slice(0, 50);
   }
@@ -1120,7 +1165,7 @@ export class ContextGatherer {
     ];
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**', '**/dist/**', '**/build/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**', '**/dist/**', '**/build/**']),
     });
     return files.slice(0, 50);
   }
@@ -1137,7 +1182,7 @@ export class ContextGatherer {
     ];
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**', '**/dist/**', '**/build/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**', '**/dist/**', '**/build/**']),
     });
     return files.slice(0, 30);
   }
@@ -1154,7 +1199,7 @@ export class ContextGatherer {
     ];
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**', '**/dist/**', '**/build/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**', '**/dist/**', '**/build/**']),
     });
     return files.slice(0, 50);
   }
@@ -1171,7 +1216,7 @@ export class ContextGatherer {
     ];
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**', '**/dist/**', '**/build/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**', '**/dist/**', '**/build/**']),
     });
     return files.slice(0, 30);
   }
@@ -1191,7 +1236,7 @@ export class ContextGatherer {
     ];
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/Pods/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**', '**/dist/**', '**/build/**', '**/Pods/**']),
     });
     return files.slice(0, 30);
   }
@@ -1203,7 +1248,7 @@ export class ContextGatherer {
     const patterns = ['**/*.tf', '**/*.tfvars'];
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**', '**/.terraform/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**', '**/.terraform/**']),
     });
     return files.slice(0, 50);
   }
@@ -1220,7 +1265,7 @@ export class ContextGatherer {
     ];
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**']),
     });
     return files.slice(0, 50);
   }
@@ -1240,7 +1285,7 @@ export class ContextGatherer {
     ];
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**']),
       dot: true,
     });
     return files;
@@ -1300,7 +1345,7 @@ export class ContextGatherer {
     const patterns = ['LICENSE*', 'LICENCE*', '**/LICENSE*', '**/LICENCE*'];
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**']),
       dot: true,
     });
     return files;
@@ -1314,13 +1359,13 @@ export class ContextGatherer {
     const patterns = ['**/src/**/*.{ts,tsx,js,jsx,py,java,go}'];
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: [
+      ignore: this.getIgnorePatterns([
         '**/node_modules/**',
         '**/dist/**',
         '**/build/**',
         '**/*.test.*',
         '**/*.spec.*',
-      ],
+      ]),
     });
 
     // Use prioritized reading for comprehensive coverage
@@ -1342,7 +1387,7 @@ export class ContextGatherer {
     ];
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**', '**/.terraform/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**', '**/.terraform/**']),
     });
     return files;
   }
@@ -1361,7 +1406,7 @@ export class ContextGatherer {
     ];
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**', '**/dist/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**', '**/dist/**']),
     });
     return files;
   }
@@ -1373,7 +1418,7 @@ export class ContextGatherer {
     const patterns = ['**/cache/**/*.{ts,js,py}', '**/*Cache*.{ts,js,py}', '**/*cache*.{ts,js,py}'];
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**', '**/dist/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**', '**/dist/**']),
     });
     return files;
   }
@@ -1385,7 +1430,7 @@ export class ContextGatherer {
     const patterns = ['**/Dockerfile*', '**/*.dockerfile', '**/docker-compose*.{yml,yaml}'];
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**']),
     });
     return files;
   }
@@ -1402,7 +1447,7 @@ export class ContextGatherer {
     ];
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**', '**/dist/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**', '**/dist/**']),
     });
     return files;
   }
@@ -1415,7 +1460,7 @@ export class ContextGatherer {
     const patterns = ['**/README.md', '**/COMPLIANCE.md', '**/SECURITY.md', '**/*.md'];
     const files = await glob(patterns, {
       cwd: this.rootPath,
-      ignore: ['**/node_modules/**'],
+      ignore: this.getIgnorePatterns(['**/node_modules/**']),
     });
 
     for (const file of files.slice(0, 10)) {
@@ -1449,7 +1494,7 @@ export class ContextGatherer {
   private async getMainDirectories(): Promise<string[]> {
     const files = await glob('*/', {
       cwd: this.rootPath,
-      ignore: ['node_modules/', 'dist/', 'build/', '.git/', '.next/', 'out/'],
+      ignore: this.getIgnorePatterns(['node_modules/', 'dist/', 'build/', '.git/', '.next/', 'out/']),
     });
     return files.map(f => f.replace(/\/$/, ''));
   }

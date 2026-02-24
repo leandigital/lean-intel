@@ -7,6 +7,7 @@ import ora from 'ora';
 import { ProjectDetector } from '../core/detector';
 import { LLMOrchestrator } from '../core/llmOrchestrator';
 import { ensureProjectConfigured } from '../utils/providerPrompt';
+import { gatherContextPreview, showContextWarningAndConfirm } from '../utils/contextWarning';
 import { logger } from '../utils/logger';
 import chalk from 'chalk';
 
@@ -23,6 +24,9 @@ export const summaryCommand = new Command('summary')
   )
   .option('--skip-prompts', 'Skip interactive prompts and use provided values')
   .option('--skip-cache', 'Skip cache and regenerate')
+  .option('-y, --yes', 'Auto-confirm prompts (skip confirmation)')
+  .option('--no-redact', 'Disable secret/PII redaction')
+  .option('--include-sensitive', 'Include sensitive files (.env, keys, etc.)')
   .action(async (cmdOptions) => {
     const spinner = ora('Detecting project type...').start();
 
@@ -59,13 +63,24 @@ export const summaryCommand = new Command('summary')
       logger.info('Estimated duration: 30-60 seconds');
       logger.newLine();
 
-      logger.log('Press Ctrl+C to cancel or wait 3 seconds to continue...');
-      logger.log('');
+      // Context preview and confirmation
+      const contextPreview = await gatherContextPreview(cmdOptions.path, {
+        includeSensitive: cmdOptions.includeSensitive,
+        noRedact: cmdOptions.noRedact,
+      });
 
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      const confirmed = await showContextWarningAndConfirm(contextPreview, {
+        autoConfirm: cmdOptions.yes,
+      });
+      if (!confirmed) {
+        logger.info('Cancelled.');
+        return;
+      }
 
       const orchestrator = new LLMOrchestrator(providerConfig, cmdOptions.path, {
         skipCache: cmdOptions.skipCache,
+        includeSensitive: cmdOptions.includeSensitive,
+        noRedact: cmdOptions.noRedact,
       });
 
       logger.newLine();

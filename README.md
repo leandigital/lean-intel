@@ -183,10 +183,13 @@ Generate comprehensive documentation for your project. The CLI automatically det
 - `--industry <industry>` - Industry/domain (e.g., Healthcare, Fintech, E-commerce)
 - `--assistant <assistant>` - AI assistant (claude-code, cursor, copilot, chatgpt, gemini)
 - `--documentation-tier <tier>` - Override auto-detection: `minimal`, `standard`, or `comprehensive`
-- `--dry-run` - Show cost estimate without running
+- `--dry-run` - Show cost estimate and context preview without running
 - `--skip-cache` - Skip cache and regenerate everything
 - `--skip-prompts` - Skip interactive prompts and use provided values
 - `--concurrency <number>` - Max parallel file generations (default: 3)
+- `-y, --yes` - Auto-confirm prompts (skip confirmation)
+- `--no-redact` - Disable secret/PII redaction
+- `--include-sensitive` - Include sensitive files (.env, keys, etc.)
 
 **Documentation Tiers (Auto-Detected):**
 
@@ -237,6 +240,9 @@ Incrementally update documentation based on code changes since last generation. 
 - `--force` - Force regeneration even if no changes detected
 - `--skip-cache` - Skip cache and regenerate
 - `--concurrency <number>` - Max parallel file generations (default: 3)
+- `-y, --yes` - Auto-confirm prompts (skip confirmation)
+- `--no-redact` - Disable secret/PII redaction
+- `--include-sensitive` - Include sensitive files (.env, keys, etc.)
 
 **How it works:**
 1. Tracks last generation commit in `.lean-intel.json`
@@ -367,8 +373,11 @@ Run code analyzers.
 - `--quality` - Run code quality only
 - `--cost` - Run cost & scalability only
 - `--hipaa` - Include HIPAA compliance (healthcare)
-- `--dry-run` - Show cost estimate
+- `--dry-run` - Show cost estimate and context preview
 - `--skip-cache` - Skip cache
+- `-y, --yes` - Auto-confirm prompts (skip confirmation)
+- `--no-redact` - Disable secret/PII redaction
+- `--include-sensitive` - Include sensitive files (.env, keys, etc.)
 
 **Example:**
 ```bash
@@ -407,11 +416,14 @@ Run everything: documentation + all analyzers, optionally create PR.
 - `--skip-cost` - Skip cost analyzer
 - `--hipaa` - Include HIPAA analyzer
 - `--create-pr` - Create pull request with results
-- `--dry-run` - Show cost estimate
+- `--dry-run` - Show cost estimate and context preview
 - `--skip-cache` - Skip cache
 - `--concurrency <number>` - Max parallel file generations for docs (default: 3)
 - `--skip-prompts` - Skip interactive prompts and use provided values
 - `--export <formats>` - Export formats: pdf, html, or both (comma-separated)
+- `-y, --yes` - Auto-confirm prompts (skip confirmation)
+- `--no-redact` - Disable secret/PII redaction
+- `--include-sensitive` - Include sensitive files (.env, keys, etc.)
 
 **Example:**
 ```bash
@@ -759,6 +771,69 @@ Edit the `llmModel` field in your project's `.lean-intel.json`:
 |-------|-----|---------------------|----------|
 | **Grok 3** (default) | `grok-3` | $3/$15 per M | Flagship reasoning and generation |
 | **Grok 3 Mini** | `grok-3-mini` | $0.30/$0.50 per M | Fast, cost-efficient |
+
+---
+
+## 🔒 Data Privacy & Scrubbing
+
+lean-intel automatically protects sensitive data before sending codebase context to LLM providers.
+
+### Sensitive File Exclusion
+
+By default, these files are excluded from context gathering:
+
+- `.env`, `.env.*` (except `.env.example`)
+- `*.pem`, `*.key`, `*.p12`, `*.pfx` (certificates & keys)
+- `credentials.*`, `serviceAccountKey.json`
+- `secrets/**`, `.htpasswd`, `id_rsa*`
+- `*.jks`, `*.keystore` (Java keystores)
+
+### Binary File Exclusion
+
+Binary files are always excluded from context gathering (no opt-out) since they are useless to LLMs:
+
+- **Images**: `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.bmp`, `.ico`, `.svg`
+- **Fonts**: `.woff`, `.woff2`, `.ttf`, `.eot`, `.otf`
+- **Audio/Video**: `.mp3`, `.mp4`, `.webm`, `.mov`, `.avi`, `.wav`, `.ogg`, `.flac`
+- **Archives**: `.zip`, `.tar`, `.gz`, `.bz2`, `.7z`, `.rar`
+- **Documents**: `.pdf`, `.doc`, `.docx`, `.xls`, `.xlsx`, `.ppt`, `.pptx`
+- **Compiled**: `.exe`, `.dll`, `.so`, `.dylib`, `.o`, `.a`, `.lib`, `.class`, `.jar`, `.war`, `.pyc`, `.pyo`, `.wasm`
+
+### `.leanignore` File
+
+Create a `.leanignore` file in your project root to exclude additional files (`.gitignore` syntax):
+
+```gitignore
+# Exclude internal configs
+src/config/production.ts
+internal-docs/**
+
+# Re-include a specific env file
+!.env.development
+```
+
+### Secret & PII Redaction
+
+Content from included files is automatically scanned and redacted before being sent to any LLM provider:
+
+- **Secrets**: AWS keys, GitHub/Slack tokens, JWTs, private keys (PEM), Bearer tokens, connection strings (MongoDB, PostgreSQL, MySQL, Redis, AMQP), generic API keys/passwords
+- **PII**: Email addresses, US phone numbers, SSNs, IP addresses
+
+Matches are replaced with `[REDACTED:TYPE]` markers (e.g., `[REDACTED:AWS_KEY]`).
+
+### Privacy CLI Flags
+
+| Flag | Description |
+|------|-------------|
+| `-y, --yes` | Auto-confirm the context preview prompt |
+| `--no-redact` | Disable secret/PII redaction |
+| `--include-sensitive` | Include sensitive files (`.env`, keys, etc.) |
+
+These flags are available on all commands: `docs`, `analyze`, `full`, `update`, `summary`, `ai-helper`.
+
+### Enhanced `--dry-run`
+
+When using `--dry-run`, the output now includes a context preview showing file counts, total size, file type breakdown, and estimated redaction counts.
 
 ---
 
