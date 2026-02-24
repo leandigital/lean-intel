@@ -26,7 +26,7 @@ export const analyzeCommand = new Command('analyze')
   .option('--dry-run', 'Show cost estimate without running')
   .option('--skip-cache', 'Skip cache and reanalyze everything')
   .option('-y, --yes', 'Auto-confirm prompts (skip confirmation)')
-  .option('--no-redact', 'Disable secret/PII redaction')
+  .option('--skip-redact', 'Disable secret/PII redaction')
   .option('--include-sensitive', 'Include sensitive files (.env, keys, etc.)')
   .action(async (cmdOptions) => {
     const spinner = ora('Detecting project type...').start();
@@ -117,11 +117,11 @@ export const analyzeCommand = new Command('analyze')
       // Context preview
       const contextPreview = await gatherContextPreview(cmdOptions.path, {
         includeSensitive: cmdOptions.includeSensitive,
-        noRedact: cmdOptions.noRedact,
+        noRedact: cmdOptions.skipRedact,
       });
 
       if (options.dryRun) {
-        showContextWarningAndConfirm(contextPreview, { autoConfirm: true });
+        await showContextWarningAndConfirm(contextPreview, { autoConfirm: true });
         logger.newLine();
         logger.info('Dry run complete. Use without --dry-run to run analysis.');
         return;
@@ -145,7 +145,7 @@ export const analyzeCommand = new Command('analyze')
       const orchestrator = new LLMOrchestrator(providerConfig, cmdOptions.path, {
         skipCache: cmdOptions.skipCache,
         includeSensitive: cmdOptions.includeSensitive,
-        noRedact: cmdOptions.noRedact,
+        noRedact: cmdOptions.skipRedact,
       });
 
       logger.newLine();

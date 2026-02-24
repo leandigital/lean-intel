@@ -38,7 +38,7 @@ export const updateCommand = new Command('update')
   .option('--skip-cache', 'Skip cache and regenerate')
   .option('--concurrency <number>', 'Max parallel file generations (default: 3)', '3')
   .option('-y, --yes', 'Auto-confirm prompts (skip confirmation)')
-  .option('--no-redact', 'Disable secret/PII redaction')
+  .option('--skip-redact', 'Disable secret/PII redaction')
   .option('--include-sensitive', 'Include sensitive files (.env, keys, etc.)')
   .action(async (options) => {
     const spinner = ora('Checking project state...').start();
@@ -272,11 +272,11 @@ export const updateCommand = new Command('update')
       // Context preview
       const contextPreview = await gatherContextPreview(options.path, {
         includeSensitive: options.includeSensitive,
-        noRedact: options.noRedact,
+        noRedact: options.skipRedact,
       });
 
       if (options.dryRun) {
-        showContextWarningAndConfirm(contextPreview, { autoConfirm: true });
+        await showContextWarningAndConfirm(contextPreview, { autoConfirm: true });
         logger.newLine();
         logger.info('Dry run complete. Use without --dry-run to proceed with update.');
         return;
@@ -300,7 +300,7 @@ export const updateCommand = new Command('update')
       const orchestrator = new LLMOrchestrator(providerConfig, options.path, {
         skipCache: options.skipCache,
         includeSensitive: options.includeSensitive,
-        noRedact: options.noRedact,
+        noRedact: options.skipRedact,
       });
 
       logger.newLine();

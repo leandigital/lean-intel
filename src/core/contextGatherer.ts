@@ -532,24 +532,16 @@ export class ContextGatherer {
    * Read package.json content
    */
   private async getPackageJsonContent(): Promise<string | undefined> {
-    const pkgPath = path.join(this.rootPath, 'package.json');
-    if (await fs.pathExists(pkgPath)) {
-      const content = await fs.readFile(pkgPath, 'utf-8');
-      return content;
-    }
-    return undefined;
+    const content = await this.readFileContent('package.json');
+    return content ?? undefined;
   }
 
   /**
    * Read requirements.txt content (Python)
    */
   private async getRequirementsTxtContent(): Promise<string | undefined> {
-    const reqPath = path.join(this.rootPath, 'requirements.txt');
-    if (await fs.pathExists(reqPath)) {
-      const content = await fs.readFile(reqPath, 'utf-8');
-      return content;
-    }
-    return undefined;
+    const content = await this.readFileContent('requirements.txt');
+    return content ?? undefined;
   }
 
   /**

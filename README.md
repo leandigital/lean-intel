@@ -188,7 +188,7 @@ Generate comprehensive documentation for your project. The CLI automatically det
 - `--skip-prompts` - Skip interactive prompts and use provided values
 - `--concurrency <number>` - Max parallel file generations (default: 3)
 - `-y, --yes` - Auto-confirm prompts (skip confirmation)
-- `--no-redact` - Disable secret/PII redaction
+- `--skip-redact` - Disable secret/PII redaction
 - `--include-sensitive` - Include sensitive files (.env, keys, etc.)
 
 **Documentation Tiers (Auto-Detected):**
@@ -241,7 +241,7 @@ Incrementally update documentation based on code changes since last generation. 
 - `--skip-cache` - Skip cache and regenerate
 - `--concurrency <number>` - Max parallel file generations (default: 3)
 - `-y, --yes` - Auto-confirm prompts (skip confirmation)
-- `--no-redact` - Disable secret/PII redaction
+- `--skip-redact` - Disable secret/PII redaction
 - `--include-sensitive` - Include sensitive files (.env, keys, etc.)
 
 **How it works:**
@@ -376,7 +376,7 @@ Run code analyzers.
 - `--dry-run` - Show cost estimate and context preview
 - `--skip-cache` - Skip cache
 - `-y, --yes` - Auto-confirm prompts (skip confirmation)
-- `--no-redact` - Disable secret/PII redaction
+- `--skip-redact` - Disable secret/PII redaction
 - `--include-sensitive` - Include sensitive files (.env, keys, etc.)
 
 **Example:**
@@ -422,7 +422,7 @@ Run everything: documentation + all analyzers, optionally create PR.
 - `--skip-prompts` - Skip interactive prompts and use provided values
 - `--export <formats>` - Export formats: pdf, html, or both (comma-separated)
 - `-y, --yes` - Auto-confirm prompts (skip confirmation)
-- `--no-redact` - Disable secret/PII redaction
+- `--skip-redact` - Disable secret/PII redaction
 - `--include-sensitive` - Include sensitive files (.env, keys, etc.)
 
 **Example:**
@@ -826,7 +826,7 @@ Matches are replaced with `[REDACTED:TYPE]` markers (e.g., `[REDACTED:AWS_KEY]`)
 | Flag | Description |
 |------|-------------|
 | `-y, --yes` | Auto-confirm the context preview prompt |
-| `--no-redact` | Disable secret/PII redaction |
+| `--skip-redact` | Disable secret/PII redaction |
 | `--include-sensitive` | Include sensitive files (`.env`, keys, etc.) |
 
 These flags are available on all commands: `docs`, `analyze`, `full`, `update`, `summary`, `ai-helper`.

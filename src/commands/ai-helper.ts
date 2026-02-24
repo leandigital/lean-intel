@@ -29,7 +29,7 @@ export const aiHelperCommand = new Command('ai-helper')
   .option('--skip-cache', 'Skip cache and regenerate')
   .option('--force', 'Force regeneration even if file exists (skip update prompt)')
   .option('-y, --yes', 'Auto-confirm prompts (skip confirmation)')
-  .option('--no-redact', 'Disable secret/PII redaction')
+  .option('--skip-redact', 'Disable secret/PII redaction')
   .option('--include-sensitive', 'Include sensitive files (.env, keys, etc.)')
   .action(async (cmdOptions) => {
     const spinner = ora('Detecting project type...').start();
@@ -126,7 +126,7 @@ export const aiHelperCommand = new Command('ai-helper')
       // Context preview and confirmation
       const contextPreview = await gatherContextPreview(cmdOptions.path, {
         includeSensitive: cmdOptions.includeSensitive,
-        noRedact: cmdOptions.noRedact,
+        noRedact: cmdOptions.skipRedact,
       });
 
       const confirmed = await showContextWarningAndConfirm(contextPreview, {
@@ -140,7 +140,7 @@ export const aiHelperCommand = new Command('ai-helper')
       const orchestrator = new LLMOrchestrator(providerConfig, cmdOptions.path, {
         skipCache: cmdOptions.skipCache,
         includeSensitive: cmdOptions.includeSensitive,
-        noRedact: cmdOptions.noRedact,
+        noRedact: cmdOptions.skipRedact,
       });
 
       logger.newLine();

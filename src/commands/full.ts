@@ -49,7 +49,7 @@ export const fullCommand = new Command('full')
   .option('--concurrency <number>', 'Max parallel file generations for docs (default: 3)', '3')
   .option('--export <formats>', 'Export formats: pdf, html, or both (comma-separated)')
   .option('-y, --yes', 'Auto-confirm prompts (skip confirmation)')
-  .option('--no-redact', 'Disable secret/PII redaction')
+  .option('--skip-redact', 'Disable secret/PII redaction')
   .option('--include-sensitive', 'Include sensitive files (.env, keys, etc.)')
   .action(async (cmdOptions) => {
     const spinner = ora('Detecting project type...').start();
@@ -129,11 +129,11 @@ export const fullCommand = new Command('full')
       // Context preview
       const contextPreview = await gatherContextPreview(cmdOptions.path, {
         includeSensitive: cmdOptions.includeSensitive,
-        noRedact: cmdOptions.noRedact,
+        noRedact: cmdOptions.skipRedact,
       });
 
       if (options.dryRun) {
-        showContextWarningAndConfirm(contextPreview, { autoConfirm: true });
+        await showContextWarningAndConfirm(contextPreview, { autoConfirm: true });
         logger.newLine();
         logger.info('Dry run complete. Use without --dry-run to run full analysis.');
         return;
@@ -157,7 +157,7 @@ export const fullCommand = new Command('full')
       const orchestrator = new LLMOrchestrator(providerConfig, cmdOptions.path, {
         skipCache: cmdOptions.skipCache,
         includeSensitive: cmdOptions.includeSensitive,
-        noRedact: cmdOptions.noRedact,
+        noRedact: cmdOptions.skipRedact,
       });
 
       const allResults = [];
