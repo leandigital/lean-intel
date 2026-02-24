@@ -26,6 +26,7 @@ import { ProjectConfigManager, GenerationMetadata } from '../utils/projectConfig
 import { ensureProjectConfigured } from '../utils/providerPrompt';
 import { CommitManager } from '../git/commit';
 import { estimateCost, formatCost } from '../utils/costEstimator';
+import { gatherContextPreview, showContextWarningAndConfirm } from '../utils/contextWarning';
 import { logger } from '../utils/logger';
 
 export const updateCommand = new Command('update')
@@ -36,6 +37,9 @@ export const updateCommand = new Command('update')
   .option('--force', 'Force full regeneration even if no changes detected')
   .option('--skip-cache', 'Skip cache and regenerate')
   .option('--concurrency <number>', 'Max parallel file generations (default: 3)', '3')
+  .option('-y, --yes', 'Auto-confirm prompts (skip confirmation)')
+  .option('--skip-redact', 'Disable secret/PII redaction')
+  .option('--include-sensitive', 'Include sensitive files (.env, keys, etc.)')
   .action(async (options) => {
     const spinner = ora('Checking project state...').start();
 
@@ -265,7 +269,15 @@ export const updateCommand = new Command('update')
       ]);
       logger.newLine();
 
+      // Context preview
+      const contextPreview = await gatherContextPreview(options.path, {
+        includeSensitive: options.includeSensitive,
+        noRedact: options.skipRedact,
+      });
+
       if (options.dryRun) {
+        await showContextWarningAndConfirm(contextPreview, { autoConfirm: true });
+        logger.newLine();
         logger.info('Dry run complete. Use without --dry-run to proceed with update.');
         return;
       }
@@ -274,15 +286,21 @@ export const updateCommand = new Command('update')
       logger.warn(
         `This will cost approximately ${formatCost(estimatedCost)}.`
       );
-      logger.log('');
-      logger.log('Press Ctrl+C to cancel or wait 3 seconds to continue...');
-      logger.log('');
+      logger.newLine();
 
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      const confirmed = await showContextWarningAndConfirm(contextPreview, {
+        autoConfirm: options.yes,
+      });
+      if (!confirmed) {
+        logger.info('Cancelled.');
+        return;
+      }
 
       // Initialize orchestrator
       const orchestrator = new LLMOrchestrator(providerConfig, options.path, {
         skipCache: options.skipCache,
+        includeSensitive: options.includeSensitive,
+        noRedact: options.skipRedact,
       });
 
       logger.newLine();

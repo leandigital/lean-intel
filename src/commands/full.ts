@@ -15,6 +15,7 @@ import { configManager } from '../utils/config';
 import { GenerationMetadata } from '../utils/projectConfig';
 import { ensureProjectConfigured } from '../utils/providerPrompt';
 import { estimateCost, formatCost, formatDuration } from '../utils/costEstimator';
+import { gatherContextPreview, showContextWarningAndConfirm } from '../utils/contextWarning';
 import { logger } from '../utils/logger';
 import { AnalysisOptions, AnalysisResults, ExportFormat } from '../types';
 import { ExportGenerator } from '../core/exportGenerator';
@@ -47,6 +48,9 @@ export const fullCommand = new Command('full')
   .option('--skip-prompts', 'Skip interactive prompts and use provided values')
   .option('--concurrency <number>', 'Max parallel file generations for docs (default: 3)', '3')
   .option('--export <formats>', 'Export formats: pdf, html, or both (comma-separated)')
+  .option('-y, --yes', 'Auto-confirm prompts (skip confirmation)')
+  .option('--skip-redact', 'Disable secret/PII redaction')
+  .option('--include-sensitive', 'Include sensitive files (.env, keys, etc.)')
   .action(async (cmdOptions) => {
     const spinner = ora('Detecting project type...').start();
 
@@ -122,7 +126,15 @@ export const fullCommand = new Command('full')
       ]);
       logger.newLine();
 
+      // Context preview
+      const contextPreview = await gatherContextPreview(cmdOptions.path, {
+        includeSensitive: cmdOptions.includeSensitive,
+        noRedact: cmdOptions.skipRedact,
+      });
+
       if (options.dryRun) {
+        await showContextWarningAndConfirm(contextPreview, { autoConfirm: true });
+        logger.newLine();
         logger.info('Dry run complete. Use without --dry-run to run full analysis.');
         return;
       }
@@ -131,15 +143,21 @@ export const fullCommand = new Command('full')
       logger.warn(
         `This will cost approximately ${formatCost(estimate.estimatedCost)}.`
       );
-      logger.log('');
-      logger.log('Press Ctrl+C to cancel or wait 3 seconds to continue...');
-      logger.log('');
+      logger.newLine();
 
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      const confirmed = await showContextWarningAndConfirm(contextPreview, {
+        autoConfirm: cmdOptions.yes,
+      });
+      if (!confirmed) {
+        logger.info('Cancelled.');
+        return;
+      }
 
       // Initialize orchestrator
       const orchestrator = new LLMOrchestrator(providerConfig, cmdOptions.path, {
         skipCache: cmdOptions.skipCache,
+        includeSensitive: cmdOptions.includeSensitive,
+        noRedact: cmdOptions.skipRedact,
       });
 
       const allResults = [];

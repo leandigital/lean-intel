@@ -4,7 +4,7 @@
 
 import { jsonrepair } from 'jsonrepair';
 import { ProjectContext, AnalysisOptions, AnalyzerResult, DocumentationContext } from '../types';
-import { ContextGatherer } from './contextGatherer';
+import { ContextGatherer, ContextGathererOptions } from './contextGatherer';
 import { CodebaseInventory } from './codebaseInventory';
 import { OutputValidator } from './outputValidator';
 import { logger } from '../utils/logger';
@@ -61,6 +61,10 @@ import { parallelLimitWithProgress } from '../utils/concurrency';
 
 export interface OrchestratorOptions {
   skipCache?: boolean;
+  /** Include sensitive files (.env, keys, etc.) */
+  includeSensitive?: boolean;
+  /** Disable content redaction */
+  noRedact?: boolean;
 }
 
 export class LLMOrchestrator {
@@ -72,7 +76,11 @@ export class LLMOrchestrator {
 
   constructor(providerConfig: ProviderConfig, projectPath: string, options: OrchestratorOptions = {}) {
     this.provider = ProviderFactory.createProvider(providerConfig);
-    this.contextGatherer = new ContextGatherer(projectPath);
+    const gathererOptions: ContextGathererOptions = {
+      includeSensitive: options.includeSensitive,
+      noRedact: options.noRedact,
+    };
+    this.contextGatherer = new ContextGatherer(projectPath, gathererOptions);
     this.projectPath = projectPath;
     this.cache = new LLMCache(projectPath);
     this.skipCache = options.skipCache ?? false;
@@ -81,6 +89,13 @@ export class LLMOrchestrator {
     if (this.skipCache) {
       logger.debug('Cache disabled for this session');
     }
+  }
+
+  /**
+   * Get cumulative redaction statistics from the context gatherer
+   */
+  getRedactionStats() {
+    return this.contextGatherer.getRedactionStats();
   }
 
   /**

@@ -101,6 +101,18 @@ jest.mock('../src/utils/costEstimator', () => ({
   formatCost: jest.fn((value: number) => `$${value.toFixed(2)}`),
 }));
 
+jest.mock('../src/utils/contextWarning', () => ({
+  gatherContextPreview: jest.fn().mockResolvedValue({
+    fileCount: 10,
+    totalSizeBytes: 5000,
+    fileTypeBreakdown: { '.ts': 8, '.json': 2 },
+    estimatedRedactions: 0,
+    redactionBreakdown: {},
+    sensitiveFilesExcluded: 0,
+  }),
+  showContextWarningAndConfirm: jest.fn().mockResolvedValue(true),
+}));
+
 jest.mock('../src/utils/logger', () => ({
   logger: {
     newLine: jest.fn(),

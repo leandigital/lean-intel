@@ -11,6 +11,7 @@ import { GenerationMetadata } from '../utils/projectConfig';
 import { ensureProjectConfigured } from '../utils/providerPrompt';
 import { CommitManager } from '../git/commit';
 import { estimateCost, formatCost } from '../utils/costEstimator';
+import { gatherContextPreview, showContextWarningAndConfirm } from '../utils/contextWarning';
 import { logger } from '../utils/logger';
 import chalk from 'chalk';
 
@@ -33,6 +34,9 @@ export const docsCommand = new Command('docs')
   .option('--skip-cache', 'Skip cache and regenerate everything')
   .option('--skip-prompts', 'Skip interactive prompts and use provided values')
   .option('--concurrency <number>', 'Max parallel file generations (default: 3)', '3')
+  .option('-y, --yes', 'Auto-confirm prompts (skip confirmation)')
+  .option('--skip-redact', 'Disable secret/PII redaction')
+  .option('--include-sensitive', 'Include sensitive files (.env, keys, etc.)')
   .action(async (options) => {
     const spinner = ora('Detecting project type...').start();
 
@@ -92,7 +96,15 @@ export const docsCommand = new Command('docs')
       ]);
       logger.newLine();
 
+      // Context preview
+      const contextPreview = await gatherContextPreview(options.path, {
+        includeSensitive: options.includeSensitive,
+        noRedact: options.skipRedact,
+      });
+
       if (options.dryRun) {
+        await showContextWarningAndConfirm(contextPreview, { autoConfirm: true });
+        logger.newLine();
         logger.info('Dry run complete. Use without --dry-run to generate documentation.');
         return;
       }
@@ -101,15 +113,21 @@ export const docsCommand = new Command('docs')
       logger.warn(
         `This will cost approximately ${formatCost(estimate.estimatedCost)}.`
       );
-      logger.log('');
-      logger.log('Press Ctrl+C to cancel or wait 3 seconds to continue...');
-      logger.log('');
+      logger.newLine();
 
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      const confirmed = await showContextWarningAndConfirm(contextPreview, {
+        autoConfirm: options.yes,
+      });
+      if (!confirmed) {
+        logger.info('Cancelled.');
+        return;
+      }
 
       // Generate documentation
       const orchestrator = new LLMOrchestrator(providerConfig, options.path, {
         skipCache: options.skipCache,
+        includeSensitive: options.includeSensitive,
+        noRedact: options.skipRedact,
       });
 
       logger.newLine();
