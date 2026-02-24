@@ -77,7 +77,7 @@ const SECRET_PATTERNS: RedactionPattern[] = [
   // Generic API keys / tokens / passwords in env-style assignments
   {
     name: 'GENERIC_SECRET',
-    pattern: /(?:api_?key|api_?secret|auth_?token|access_?token|secret_?key|password|passwd|private_?key|client_?secret)\s*[=:]\s*['"]?[A-Za-z0-9_\-./+=]{8,}['"]?/gi,
+    pattern: /(?:api_?key|api_?secret|auth_?token|access_?token|secret_?key|password|passwd|private_?key|client_?secret)\s*[=:]\s*['"]?[A-Za-z0-9_\-./+=]{8,128}['"]?/gi,
     replacement: '[REDACTED:GENERIC_SECRET]',
   },
 ];
@@ -92,7 +92,7 @@ const PII_PATTERNS: RedactionPattern[] = [
   // US phone numbers
   {
     name: 'PHONE',
-    pattern: /(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g,
+    pattern: /\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}\b/g,
     replacement: '[REDACTED:PHONE]',
   },
   // SSN
@@ -104,7 +104,7 @@ const PII_PATTERNS: RedactionPattern[] = [
   // IPv4 addresses (skip common non-sensitive ones like 0.0.0.0, 127.0.0.1, localhost patterns)
   {
     name: 'IP_ADDRESS',
-    pattern: /\b(?!0\.0\.0\.0|127\.0\.0\.1|255\.255\.255\.\d|10\.0\.0\.\d|192\.168\.\d{1,3}\.\d{1,3})\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g,
+    pattern: /\b(?!0\.0\.0\.0|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|255\.255\.255\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g,
     replacement: '[REDACTED:IP_ADDRESS]',
   },
 ];
